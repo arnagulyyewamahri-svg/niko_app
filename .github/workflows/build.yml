@@ -1,38 +1,56 @@
 name: Build APK
 
 on:
-  workflow_dispatch:
   push:
-    branches: [ main ]
+    branches: [ main, master ]
+  workflow_dispatch:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
+    
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repo
+        uses: actions/checkout@v4
 
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: '3.10'
 
       - name: Install system dependencies
         run: |
-          sudo apt update
-          sudo apt install -y git zip unzip openjdk-17-jdk python3-pip \
-            autoconf automake libtool pkg-config zlib1g-dev libncurses-dev \
-            libncursesw5-dev cmake libffi-dev libssl-dev gettext
-      - name: Install buildozer
-        run: |
-          pip install --upgrade pip
-          pip install buildozer cython
+          sudo apt-get update
+          sudo apt-get install -y \
+            python3-pip build-essential git \
+            ffmpeg \
+            libsdl2-dev libsdl2-image-dev libsdl2-mixer-dev libsdl2-ttf-dev \
+            libportmidi-dev libswscale-dev libavformat-dev libavcodec-dev \
+            zlib1g-dev libgstreamer1.0 gstreamer1.0-plugins-base gstreamer1.0-plugins-good \
+            wget libffi-dev libssl-dev \
+            autoconf automake libtool pkg-config autotools-dev libltdl-dev \
+            libncurses5-dev libncursesw5-dev \
+            zip unzip openjdk-17-jdk
 
-      - name: Build APK
+      - name: Install Buildozer & Cython
         run: |
-          yes | buildozer -v android debug
+          pip install --upgrade buildozer cython virtualenv
 
-      - name: Upload APK
+      - name: Accept Android SDK licenses
+        run: |
+          mkdir -p ~/.buildozer/android/platform/android-sdk/cmdline-tools
+          yes | ~/.buildozer/android/platform/android-sdk/cmdline-tools/latest/bin/sdkmanager --licenses || true
+
+      - name: Clean previous build cache
+        run: buildozer android clean || true
+
+      - name: Build APK (verbose)
+        run: buildozer -v android debug
+        timeout-minutes: 45
+
+      - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: niko_app-apk
+          name: niko-app-apk
           path: bin/*.apk
+
