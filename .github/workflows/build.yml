@@ -8,7 +8,7 @@ on:
 jobs:
   build:
     runs-on: ubuntu-22.04
-    
+
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
@@ -26,7 +26,7 @@ jobs:
             ffmpeg \
             libsdl2-dev libsdl2-image-dev libsdl2-mixer-dev libsdl2-ttf-dev \
             libportmidi-dev libswscale-dev libavformat-dev libavcodec-dev \
-            zlib1g-dev libgstreamer1.0 gstreamer1.0-plugins-base gstreamer1.0-plugins-good \
+            zlib1g-dev libgstreamer1.0-0 gstreamer1.0-plugins-base gstreamer1.0-plugins-good \
             wget libffi-dev libssl-dev \
             autoconf automake libtool pkg-config autotools-dev libltdl-dev \
             libncurses5-dev libncursesw5-dev \
@@ -36,16 +36,8 @@ jobs:
         run: |
           pip install --upgrade buildozer cython virtualenv
 
-      - name: Accept Android SDK licenses
-        run: |
-          mkdir -p ~/.buildozer/android/platform/android-sdk/cmdline-tools
-          yes | ~/.buildozer/android/platform/android-sdk/cmdline-tools/latest/bin/sdkmanager --licenses || true
-
-      - name: Clean previous build cache
-        run: buildozer android clean || true
-
       - name: Build APK (verbose)
-        run: buildozer -v android debug
+        run: yes | buildozer -v android debug
         timeout-minutes: 45
 
       - name: Upload APK artifact
