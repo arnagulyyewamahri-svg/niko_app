@@ -8,7 +8,8 @@ on:
 jobs:
   build:
     runs-on: ubuntu-22.04
-
+    timeout-minutes: 60
+    
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
@@ -35,13 +36,18 @@ jobs:
       - name: Install Buildozer & Cython
         run: |
           pip install --upgrade buildozer cython virtualenv
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
 
-      - name: Build APK (verbose)
-        run: yes | buildozer -v android debug
-        timeout-minutes: 45
+      - name: Build APK
+        run: |
+          export PATH="$HOME/.local/bin:$PATH"
+          buildozer -v android debug
+        timeout-minutes: 50
 
       - name: Upload APK artifact
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: niko-app-apk
           path: bin/*.apk
+          if-no-files-found: warn
