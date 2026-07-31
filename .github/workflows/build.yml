@@ -10,6 +10,9 @@ jobs:
     runs-on: ubuntu-22.04
     timeout-minutes: 60
 
+    env:
+      JAVA_HOME: /usr/lib/jvm/temurin-17-jdk-amd64
+
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
@@ -50,6 +53,8 @@ jobs:
           cp -r latest/* $SDK_DIR/tools/
 
           yes | $SDK_DIR/cmdline-tools/latest/bin/sdkmanager --licenses || true
+        env:
+          JAVA_HOME: /usr/lib/jvm/temurin-17-jdk-amd64
 
       - name: Fix buildozer.spec automatically
         run: |
@@ -63,6 +68,7 @@ jobs:
       - name: Build APK
         run: |
           export PATH="$HOME/.local/bin:$PATH"
+          export JAVA_HOME=/usr/lib/jvm/temurin-17-jdk-amd64
           buildozer -v android debug
         timeout-minutes: 50
 
