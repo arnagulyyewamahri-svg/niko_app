@@ -9,7 +9,7 @@ jobs:
   build:
     runs-on: ubuntu-22.04
     timeout-minutes: 60
-    
+
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
@@ -19,52 +19,48 @@ jobs:
         with:
           python-version: '3.10'
 
-      - name: Install system dependencies
+      - name: Install dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y \
             python3-pip build-essential git \
-            ffmpeg \
-            libsdl2-dev libsdl2-image-dev libsdl2-mixer-dev libsdl2-ttf-dev \
+            ffmpeg libsdl2-dev libsdl2-image-dev libsdl2-mixer-dev libsdl2-ttf-dev \
             libportmidi-dev libswscale-dev libavformat-dev libavcodec-dev \
-            zlib1g-dev libgstreamer1.0-0 gstreamer1.0-plugins-base gstreamer1.0-plugins-good \
+            zlib1g-dev libgstreamer1.0-0 gstreamer1.0-plugins-base \
             wget libffi-dev libssl-dev \
-            autoconf automake libtool pkg-config autotools-dev libltdl-dev \
-            libncurses5-dev libncursesw5-dev \
+            autoconf automake libtool pkg-config \
             zip unzip openjdk-17-jdk
 
-      - name: Install Buildozer & Cython
+      - name: Install Buildozer
         run: |
           pip install --upgrade buildozer cython virtualenv
           echo "$HOME/.local/bin" >> $GITHUB_PATH
 
-      - name: Fix git config and clean buildozer
-        run: |
-          git config --global --add safe.directory '*'
-          git config --global user.email "actions@github.com"
-          git config --global user.name "GitHub Actions"
-          export PATH="$HOME/.local/bin:$PATH"
-          buildozer android clean || true
-
-      - name: Pre-install Android SDK
+      - name: Pre-install Android SDK cmdline-tools
         run: |
           mkdir -p $HOME/.buildozer/android/platform/android-sdk/cmdline-tools
           cd $HOME/.buildozer/android/platform/android-sdk/cmdline-tools
-          wget -q https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip
-          unzip -q commandlinetools-linux-11076708_latest.zip
+          wget -q https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip -O tools.zip
+          unzip -q tools.zip
           mv cmdline-tools latest
-          export ANDROID_SDK_ROOT=$HOME/.buildozer/android/platform/android-sdk
-          yes | $ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager --licenses || true
-          $ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager "platform-tools" "platforms;android-33" "build-tools;33.0.0" || true
+          yes | $HOME/.buildozer/android/platform/android-sdk/cmdline-tools/latest/bin/sdkmanager --licenses || true
+
+      - name: Fix buildozer.spec automatically
+        run: |
+          sed -i 's/^requirements = python3,kivy$/requirements = python3,kivy,pyjnius,plyer/' buildozer.spec
+          sed -i 's/^#android.api = 33$/android.api = 33/' buildozer.spec
+          sed -i 's/^#android.minapi = 24$/android.minapi = 21/' buildozer.spec
+          if ! grep -q "^android.permissions" buildozer.spec; then
+            echo "android.permissions = INTERNET" >> buildozer.spec
+          fi
 
       - name: Build APK
         run: |
           export PATH="$HOME/.local/bin:$PATH"
-          export ANDROID_SDK_ROOT=$HOME/.buildozer/android/platform/android-sdk
           buildozer -v android debug
         timeout-minutes: 50
 
-      - name: Upload APK artifact
+      - name: Upload APK
         if: always()
         uses: actions/upload-artifact@v4
         with:
