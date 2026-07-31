@@ -38,12 +38,18 @@ jobs:
 
       - name: Pre-install Android SDK cmdline-tools
         run: |
-          mkdir -p $HOME/.buildozer/android/platform/android-sdk/cmdline-tools
-          cd $HOME/.buildozer/android/platform/android-sdk/cmdline-tools
+          SDK_DIR=$HOME/.buildozer/android/platform/android-sdk
+          mkdir -p $SDK_DIR/cmdline-tools
+          cd $SDK_DIR/cmdline-tools
           wget -q https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip -O tools.zip
           unzip -q tools.zip
+          rm tools.zip
           mv cmdline-tools latest
-          yes | $HOME/.buildozer/android/platform/android-sdk/cmdline-tools/latest/bin/sdkmanager --licenses || true
+
+          mkdir -p $SDK_DIR/tools
+          cp -r latest/* $SDK_DIR/tools/
+
+          yes | $SDK_DIR/cmdline-tools/latest/bin/sdkmanager --licenses || true
 
       - name: Fix buildozer.spec automatically
         run: |
