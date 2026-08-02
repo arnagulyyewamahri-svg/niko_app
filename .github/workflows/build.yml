@@ -9,10 +9,7 @@ jobs:
   build:
     runs-on: ubuntu-22.04
     timeout-minutes: 60
-
-    env:
-      JAVA_HOME: /usr/lib/jvm/temurin-17-jdk-amd64
-
+    
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
@@ -25,52 +22,14 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y \
-            python3-pip build-essential git \
-            ffmpeg libsdl2-dev libsdl2-image-dev libsdl2-mixer-dev libsdl2-ttf-dev \
-            libportmidi-dev libswscale-dev libavformat-dev libavcodec-dev \
-            zlib1g-dev libgstreamer1.0-0 gstreamer1.0-plugins-base \
-            wget libffi-dev libssl-dev \
-            autoconf automake libtool pkg-config \
-            zip unzip openjdk-17-jdk
-
-      - name: Install Buildozer
-        run: |
+          sudo apt-get install -y python3-pip build-essential git wget unzip openjdk-17-jdk
           pip install --upgrade buildozer cython virtualenv
-          echo "$HOME/.local/bin" >> $GITHUB_PATH
-
-      - name: Pre-install Android SDK cmdline-tools
-        run: |
-          SDK_DIR=$HOME/.buildozer/android/platform/android-sdk
-          mkdir -p $SDK_DIR/cmdline-tools
-          cd $SDK_DIR/cmdline-tools
-          wget -q https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip -O tools.zip
-          unzip -q tools.zip
-          rm tools.zip
-          mv cmdline-tools latest
-
-          mkdir -p $SDK_DIR/tools
-          cp -r latest/* $SDK_DIR/tools/
-
-          yes | $SDK_DIR/cmdline-tools/latest/bin/sdkmanager --licenses || true
-        env:
-          JAVA_HOME: /usr/lib/jvm/temurin-17-jdk-amd64
-
-      - name: Fix buildozer.spec automatically
-        run: |
-          sed -i 's/^requirements = python3,kivy$/requirements = python3,kivy,pyjnius,plyer/' buildozer.spec
-          sed -i 's/^#android.api = 33$/android.api = 33/' buildozer.spec
-          sed -i 's/^#android.minapi = 24$/android.minapi = 21/' buildozer.spec
-          if ! grep -q "^android.permissions" buildozer.spec; then
-            echo "android.permissions = INTERNET" >> buildozer.spec
-          fi
 
       - name: Build APK
         run: |
           export PATH="$HOME/.local/bin:$PATH"
-          export JAVA_HOME=/usr/lib/jvm/temurin-17-jdk-amd64
           buildozer -v android debug
-        timeout-minutes: 50
+        timeout-minutes: 55
 
       - name: Upload APK
         if: always()
