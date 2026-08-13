@@ -9,7 +9,7 @@ jobs:
   build:
     runs-on: ubuntu-22.04
     timeout-minutes: 60
-    
+
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
@@ -19,16 +19,25 @@ jobs:
         with:
           python-version: '3.10'
 
-      - name: Install dependencies
+      - name: Install system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y python3-pip build-essential git wget unzip openjdk-17-jdk
+          sudo apt-get install -y \
+            python3-pip build-essential git wget unzip zip \
+            openjdk-17-jdk \
+            autoconf automake libtool pkg-config \
+            zlib1g-dev libncurses5-dev libncursesw5-dev \
+            libffi-dev libssl-dev cmake gettext
+
+      - name: Install Buildozer & Cython
+        run: |
+          pip install --upgrade pip
           pip install --upgrade buildozer cython virtualenv
 
       - name: Build APK
         run: |
           export PATH="$HOME/.local/bin:$PATH"
-          buildozer -v android debug
+          yes | buildozer -v android debug
         timeout-minutes: 55
 
       - name: Upload APK
