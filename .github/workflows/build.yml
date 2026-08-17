@@ -37,6 +37,10 @@ jobs:
           pip install --upgrade pip
           pip install --upgrade buildozer cython virtualenv
 
+      - name: Inject API key
+        run: |
+          sed -i "s/PLACEHOLDER_API_KEY/${{ secrets.GEMINI_API_KEY }}/" main.py
+
       - name: Pre-install Android SDK cmdline-tools
         run: |
           SDK_DIR=$HOME/.buildozer/android/platform/android-sdk
