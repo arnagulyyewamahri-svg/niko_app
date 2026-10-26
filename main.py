@@ -40,7 +40,7 @@ YAZI = get_color_from_hex("#e8e9f5")
 SOLUK = get_color_from_hex("#8b8fb0")
 BEYAZ = (1, 1, 1, 1)
 
-Window.softinput_mode = "resize"
+Window.softinput_mode = "below_target"
 Window.clearcolor = ZEMIN
 
 
