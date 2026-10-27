@@ -1,4 +1,5 @@
 import os
+import re
 import json
 import time
 import threading
@@ -392,6 +393,21 @@ class NikoApp(App):
             self.yerel_cevap(soru, cevap)
             return
 
+        if kucuk.startswith("hava ") or kucuk == "hava":
+            sehir = soru[4:].replace("durumu", "").strip(" :")
+            if not sehir:
+                self.yerel_cevap(soru, "Şehir yaz. Örnek: hava istanbul")
+                return
+            self.sohbet_goster(bekleyen=soru)
+            threading.Thread(target=self.hizli, args=(soru, "hava", sehir), daemon=True).start()
+            return
+
+        m = re.search(r"(\d+[.,]?\d*)\s*(dolar|usd|euro|eur|sterlin|gbp|lira|tl|try)", kucuk)
+        if m and ("kac" in kucuk or "kaç" in kucuk or "kur" in kucuk):
+            self.sohbet_goster(bekleyen=soru)
+            threading.Thread(target=self.hizli, args=(soru, "kur", m), daemon=True).start()
+            return
+
         if kucuk in ("hafizayi temizle", "hafızayı temizle"):
             self.gecmis = []
             self.kaydet()
@@ -424,6 +440,24 @@ class NikoApp(App):
                 hata = "Bağlantı hatası: " + str(e)[:150]
             time.sleep(3)
         Clock.schedule_once(lambda dt: self.bitir(soru, cevap, hata), 0)
+
+    def hizli(self, soru, tur, arg):
+        try:
+            if tur == "hava":
+                r = requests.get("https://wttr.in/" + arg + "?format=%C+%t+(hissedilen+%f)&lang=tr", timeout=15)
+                cevap = arg.title() + ": " + r.text.strip()
+            else:
+                miktar = float(arg.group(1).replace(",", "."))
+                kodlar = {"dolar": "USD", "usd": "USD", "euro": "EUR", "eur": "EUR",
+                          "sterlin": "GBP", "gbp": "GBP", "lira": "TRY", "tl": "TRY", "try": "TRY"}
+                kod = kodlar[arg.group(2)]
+                hedef = "TRY" if kod != "TRY" else "USD"
+                j = requests.get("https://open.er-api.com/v6/latest/" + kod, timeout=15).json()
+                kur = j["rates"][hedef]
+                cevap = "%g %s = %.2f %s" % (miktar, kod, miktar * kur, hedef)
+        except Exception as e:
+            cevap = "Bilgi alınamadı: " + str(e)[:100]
+        Clock.schedule_once(lambda dt: self.bitir(soru, cevap, ""), 0)
 
     def bitir(self, soru, cevap, hata):
         if cevap is not None:
