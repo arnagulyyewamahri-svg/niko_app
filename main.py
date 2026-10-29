@@ -408,6 +408,28 @@ class NikoApp(App):
             threading.Thread(target=self.hizli, args=(soru, "kur", m), daemon=True).start()
             return
 
+        if kucuk.startswith("hatirlat") or kucuk.startswith("hatırlat") or kucuk.startswith("alarm kur"):
+            m = re.search(r"(\d{1,2})[:.](\d{2})", kucuk)
+            if not m:
+                self.yerel_cevap(soru, "Saati böyle yaz: hatırlat 09:30 sınav")
+                return
+            mesaj = soru[m.end():].strip(" :") or "Niko hatırlatıcı"
+            self.yerel_cevap(soru, self.alarm_kur(int(m.group(1)), int(m.group(2)), mesaj))
+            return
+
+        if kucuk.startswith("taksi"):
+            self.yerel_cevap(soru, self.play_ara("taksi"))
+            return
+
+        if kucuk.endswith(" aç") or kucuk.endswith(" ac"):
+            self.yerel_cevap(soru, self.uygulama_ac(kucuk[:-3].strip()))
+            return
+
+        if kucuk.endswith(" indir"):
+            ad = kucuk[:-6].replace("uygulamasını", "").replace("uygulamasini", "").strip()
+            self.yerel_cevap(soru, self.play_ara(ad))
+            return
+
         if kucuk in ("hafizayi temizle", "hafızayı temizle"):
             self.gecmis = []
             self.kaydet()
@@ -458,6 +480,65 @@ class NikoApp(App):
         except Exception as e:
             cevap = "Bilgi alınamadı: " + str(e)[:100]
         Clock.schedule_once(lambda dt: self.bitir(soru, cevap, ""), 0)
+
+    def alarm_kur(self, saat, dakika, mesaj):
+        try:
+            if saat > 23 or dakika > 59:
+                return "Saat geçersiz. Örnek: hatırlat 09:30 sınav"
+            from jnius import autoclass
+            Intent = autoclass("android.content.Intent")
+            AlarmClock = autoclass("android.provider.AlarmClock")
+            act = autoclass("org.kivy.android.PythonActivity").mActivity
+            it = Intent(AlarmClock.ACTION_SET_ALARM)
+            it.putExtra(AlarmClock.EXTRA_HOUR, saat)
+            it.putExtra(AlarmClock.EXTRA_MINUTES, dakika)
+            it.putExtra(AlarmClock.EXTRA_MESSAGE, mesaj)
+            it.putExtra(AlarmClock.EXTRA_SKIP_UI, True)
+            act.startActivity(it)
+            return "Alarm kuruldu: %02d:%02d - %s" % (saat, dakika, mesaj)
+        except Exception as e:
+            return "Alarm kurulamadı: " + str(e)[:100]
+
+    def play_ara(self, ad):
+        try:
+            from urllib.parse import quote
+            from jnius import autoclass
+            Intent = autoclass("android.content.Intent")
+            Uri = autoclass("android.net.Uri")
+            act = autoclass("org.kivy.android.PythonActivity").mActivity
+            it = Intent(Intent.ACTION_VIEW, Uri.parse("market://search?q=" + quote(ad) + "&c=apps"))
+            act.startActivity(it)
+            return "Play Store'da '" + ad + "' aranıyor. İstediğini seçip Yükle'ye bas."
+        except Exception as e:
+            return "Play Store açılamadı: " + str(e)[:100]
+
+    def uygulama_ac(self, ad):
+        paketler = {
+            "youtube": "com.google.android.youtube",
+            "whatsapp": "com.whatsapp",
+            "instagram": "com.instagram.android",
+            "telegram": "org.telegram.messenger",
+            "tiktok": "com.zhiliaoapp.musically",
+            "chrome": "com.android.chrome",
+            "gmail": "com.google.android.gm",
+            "harita": "com.google.android.apps.maps",
+            "haritalar": "com.google.android.apps.maps",
+            "play store": "com.android.vending",
+            "termux": "com.termux",
+        }
+        pkg = paketler.get(ad)
+        if not pkg:
+            return "Bu uygulamayı tanımıyorum. '" + ad + " indir' yazarsan Play Store'da arayabilirim."
+        try:
+            from jnius import autoclass
+            act = autoclass("org.kivy.android.PythonActivity").mActivity
+            it = act.getPackageManager().getLaunchIntentForPackage(pkg)
+            if it is None:
+                return ad.title() + " telefonda kurulu değil. '" + ad + " indir' yaz."
+            act.startActivity(it)
+            return ad.title() + " açılıyor."
+        except Exception as e:
+            return "Açılamadı: " + str(e)[:100]
 
     def bitir(self, soru, cevap, hata):
         if cevap is not None:
