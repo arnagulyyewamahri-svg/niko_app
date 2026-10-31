@@ -408,6 +408,15 @@ class NikoApp(App):
             threading.Thread(target=self.hizli, args=(soru, "kur", m), daemon=True).start()
             return
 
+        if kucuk in ("sesli aç", "sesli ac", "sesli kapat"):
+            ac = kucuk != "sesli kapat"
+            try:
+                open(self.sesli_dosyasi(), "w").write("1" if ac else "0")
+            except Exception:
+                pass
+            self.yerel_cevap(soru, "Sesli cevap açıldı." if ac else "Sesli cevap kapatıldı.")
+            return
+
         if kucuk.startswith("hatirlat") or kucuk.startswith("hatırlat") or kucuk.startswith("alarm kur"):
             m = re.search(r"(\d{1,2})[:.](\d{2})", kucuk)
             if not m:
@@ -540,12 +549,51 @@ class NikoApp(App):
         except Exception as e:
             return "Açılamadı: " + str(e)[:100]
 
+    def sesli_dosyasi(self):
+        return os.path.join(self.user_data_dir, "sesli.txt")
+
+    def sesli_acik(self):
+        try:
+            return open(self.sesli_dosyasi()).read().strip() == "1"
+        except Exception:
+            return False
+
+    def sesli_oku(self, metin):
+        if not self.sesli_acik():
+            return
+        threading.Thread(target=self._konus, args=(metin,), daemon=True).start()
+
+    def _konus(self, metin):
+        try:
+            from jnius import autoclass, PythonJavaClass, java_method
+            if not hasattr(self, "tts"):
+                class Dinle(PythonJavaClass):
+                    __javainterfaces__ = ["android/speech/tts/TextToSpeech$OnInitListener"]
+                    __javacontext__ = "app"
+
+                    @java_method("(I)V")
+                    def onInit(self, durum):
+                        pass
+
+                TTS = autoclass("android.speech.tts.TextToSpeech")
+                act = autoclass("org.kivy.android.PythonActivity").mActivity
+                self._dinle = Dinle()
+                self.tts = TTS(act, self._dinle)
+                time.sleep(2)
+                Locale = autoclass("java.util.Locale")
+                self.tts.setLanguage(Locale("tr", "TR"))
+            temiz = re.sub(r"[^\w\s.,!?:;'()%-]", " ", metin)[:3000]
+            self.tts.speak(temiz, 0, None, None)
+        except Exception:
+            pass
+
     def bitir(self, soru, cevap, hata):
         if cevap is not None:
             self.gecmis.append({"u": soru, "n": cevap})
             self.kaydet()
             self.sohbet_goster()
             Clock.schedule_once(lambda dt: self.cevap_basina_git(), 0.3)
+            self.sesli_oku(cevap)
         else:
             self.sohbet_goster(bekleyen=soru, hata="Hata: " + hata)
             Clock.schedule_once(lambda dt: self.alta_git(), 0.2)
