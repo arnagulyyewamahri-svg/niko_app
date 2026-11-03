@@ -22,8 +22,9 @@ from kivy.uix.screenmanager import ScreenManager, Screen, NoTransition
 
 API_KEY = "PLACEHOLDER_API_KEY"
 URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=" + API_KEY
-KISILIK = "Sen Niko'sun, kullanicinin samimi ve bilgili yapay zeka arkadasisin. Kisa ve anlasilir cevap ver, gereksiz uzatma."
+KISILIK = "Sen Niko'sun, kullanicinin samimi ve bilgili yapay zeka arkadasisin. Kisa ve anlasilir cevap ver, gereksiz uzatma. Emoji kullanma. Alarm ya da hatirlatici kuramazsin; kullanici isterse ona 'hatirlat 09:30 not' yazmasini soyle."
 HAFIZA_LIMIT = 30
+EMOJI = re.compile("[\U0001F000-\U0001FAFF\u2600-\u27BF\uFE0F\u200d]")
 
 MODLAR = {
     "Sohbet": "Dogal, samimi ve gerektiginde esprili konus.",
@@ -81,7 +82,7 @@ class Balon(BoxLayout):
     def __init__(self, metin, benim, **kw):
         super().__init__(size_hint_y=None, height=dp(44), **kw)
         kart = Kart(bg=MOR if benim else KART, padding=dp(10), size_hint=(0.82, None), height=dp(44))
-        et = Label(text=metin, font_size=sp(15), color=BEYAZ if benim else YAZI,
+        et = Label(text=EMOJI.sub("", metin), font_size=sp(15), color=BEYAZ if benim else YAZI,
                    halign="left", valign="top", size_hint_y=None)
         et.bind(width=lambda w, v: setattr(w, "text_size", (v, None)))
 
@@ -589,7 +590,12 @@ class NikoApp(App):
         try:
             if not hasattr(self, "tts"):
                 raise Exception("ses motoru hazir degil " + getattr(self, "tts_hata", ""))
-            r = self.tts.speak(temiz, 0, None, "niko")
+            try:
+                r = self.tts.speak(temiz, 0, None)
+            except Exception:
+                from jnius import autoclass
+                Bundle = autoclass("android.os.Bundle")
+                r = self.tts.speak(temiz, 0, Bundle(), "niko")
             if r != 0:
                 raise Exception("speak kodu %s, dil kodu %s" % (r, getattr(self, "tts_sonuc", "?")))
         except Exception as e:
