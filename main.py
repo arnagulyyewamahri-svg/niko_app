@@ -1,6 +1,7 @@
 import os
 import re
 import json
+import math
 import time
 import threading
 import datetime
@@ -8,7 +9,7 @@ import requests
 from kivy.app import App
 from kivy.clock import Clock
 from kivy.core.window import Window
-from kivy.graphics import Color, RoundedRectangle
+from kivy.graphics import Color, RoundedRectangle, Line, Ellipse
 from kivy.metrics import dp, sp
 from kivy.utils import get_color_from_hex
 from kivy.uix.boxlayout import BoxLayout
@@ -41,6 +42,8 @@ MOR = get_color_from_hex("#5b52e0")
 YAZI = get_color_from_hex("#e8e9f5")
 SOLUK = get_color_from_hex("#8b8fb0")
 BEYAZ = (1, 1, 1, 1)
+MOR_ACIK = get_color_from_hex("#6c63ff")
+HALKA = get_color_from_hex("#8f8aff")
 
 Window.softinput_mode = "below_target"
 Window.clearcolor = ZEMIN
@@ -101,6 +104,110 @@ class Balon(BoxLayout):
             self.add_widget(bosluk)
 
 
+class Ikon(Widget):
+    def __init__(self, tur, renk=YAZI, **kw):
+        super().__init__(**kw)
+        self.tur = tur
+        self.renk = renk
+        self.bind(pos=self.ciz, size=self.ciz)
+
+    def ciz(self, *a):
+        self.canvas.clear()
+        s = min(self.width, self.height)
+        if s <= 0:
+            return
+        x0 = self.center_x - s / 2
+        y0 = self.center_y - s / 2
+
+        def P(*f):
+            out = []
+            for i in range(0, len(f), 2):
+                out += [x0 + f[i] * s, y0 + f[i + 1] * s]
+            return out
+
+        w = dp(1.8)
+        t = self.tur
+        with self.canvas:
+            Color(*self.renk)
+            if t == "takvim":
+                Line(rounded_rectangle=(x0 + .12 * s, y0 + .1 * s, .76 * s, .72 * s, dp(4)), width=w)
+                Line(points=P(.12, .6, .88, .6), width=w)
+                Line(points=P(.32, .72, .32, .92), width=w)
+                Line(points=P(.68, .72, .68, .92), width=w)
+            elif t == "not":
+                Line(rounded_rectangle=(x0 + .2 * s, y0 + .1 * s, .6 * s, .8 * s, dp(4)), width=w)
+                for yy in (.66, .5, .34):
+                    Line(points=P(.32, yy, .68, yy), width=w)
+            elif t == "muzik":
+                Ellipse(pos=(x0 + .18 * s, y0 + .14 * s), size=(.3 * s, .22 * s))
+                Line(points=P(.45, .27, .45, .84), width=w)
+                Line(points=P(.45, .84, .82, .74, .82, .58), width=w)
+            elif t == "kamera":
+                Line(rounded_rectangle=(x0 + .1 * s, y0 + .2 * s, .8 * s, .52 * s, dp(4)), width=w)
+                Line(circle=(x0 + .5 * s, y0 + .46 * s, .15 * s), width=w)
+                Line(points=P(.32, .72, .4, .86, .6, .86, .68, .72), width=w)
+            elif t == "alarm":
+                Line(circle=(x0 + .5 * s, y0 + .46 * s, .32 * s), width=w)
+                Line(points=P(.5, .46, .5, .66), width=w)
+                Line(points=P(.5, .46, .64, .46), width=w)
+                Line(points=P(.14, .8, .26, .9), width=w)
+                Line(points=P(.86, .8, .74, .9), width=w)
+            elif t == "ayar":
+                cx = x0 + .5 * s
+                cy = y0 + .5 * s
+                Line(circle=(cx, cy, .28 * s), width=w)
+                Line(circle=(cx, cy, .1 * s), width=w)
+                for i in range(8):
+                    a = i * math.pi / 4
+                    Line(points=[cx + .28 * s * math.cos(a), cy + .28 * s * math.sin(a),
+                                 cx + .4 * s * math.cos(a), cy + .4 * s * math.sin(a)], width=w * 1.4)
+            elif t == "ev":
+                Line(points=P(.1, .5, .5, .88, .9, .5), width=w)
+                Line(points=P(.2, .46, .2, .12, .8, .12, .8, .46), width=w)
+                Line(points=P(.42, .12, .42, .34, .58, .34, .58, .12), width=w)
+            elif t == "hafiza":
+                Line(circle=(x0 + .36 * s, y0 + .58 * s, .2 * s), width=w)
+                Line(circle=(x0 + .64 * s, y0 + .58 * s, .2 * s), width=w)
+                Line(points=P(.5, .4, .5, .12), width=w)
+                Line(points=P(.35, .12, .65, .12), width=w)
+            elif t == "kisi":
+                Line(circle=(x0 + .5 * s, y0 + .7 * s, .16 * s), width=w)
+                pts = []
+                for i in range(13):
+                    a = math.pi * i / 12
+                    pts += [x0 + (.5 + .32 * math.cos(a)) * s, y0 + (.1 + .38 * math.sin(a)) * s]
+                Line(points=pts, width=w)
+
+
+class Logo(Widget):
+    def __init__(self, **kw):
+        super().__init__(**kw)
+        self.bind(pos=self.ciz, size=self.ciz)
+
+    def ciz(self, *a):
+        self.canvas.clear()
+        s = min(self.width, self.height)
+        if s <= 0:
+            return
+        cx, cy = self.center_x, self.center_y
+        with self.canvas:
+            Color(*MOR_ACIK)
+            Ellipse(pos=(cx - .34 * s, cy - .34 * s), size=(.68 * s, .68 * s))
+            Color(*HALKA)
+            Line(circle=(cx, cy, .48 * s), width=dp(1.3))
+
+
+class Kutu(ButtonBehavior, Kart):
+    def __init__(self, tur, ad, komut, bg=KART, boyut=14, **kw):
+        super().__init__(bg=bg, orientation="vertical", padding=dp(8), spacing=dp(4), **kw)
+        self.komut = komut
+        self.add_widget(Ikon(tur, size_hint_y=0.62))
+        self.add_widget(etiket(ad, boyut, YAZI, "center"))
+
+    def on_release(self):
+        self.komut()
+
+
 class NikoApp(App):
     def build(self):
         self.title = "Niko"
@@ -115,7 +222,8 @@ class NikoApp(App):
         self.yonetici.add_widget(self.hafiza_ekrani())
         self.yonetici.add_widget(self.yakinda_ekrani())
         kok.add_widget(self.yonetici)
-        kok.add_widget(self.alt_menu())
+        self.alt = self.alt_menu()
+        kok.add_widget(self.alt)
         return kok
 
     # ---------- dosyalar ----------
@@ -173,17 +281,25 @@ class NikoApp(App):
     def ana_ekran(self):
         e = Screen(name="ana")
         k = BoxLayout(orientation="vertical", padding=dp(14), spacing=dp(12))
-        k.add_widget(etiket("Niko", 26, YAZI, "center", dp(44)))
+        bas = BoxLayout(size_hint_y=None, height=dp(52), spacing=dp(8))
+        bas.add_widget(Widget())
+        bas.add_widget(Logo(size_hint_x=None, width=dp(40)))
+        ad = etiket("Niko", 26)
+        ad.size_hint_x = None
+        ad.width = dp(80)
+        bas.add_widget(ad)
+        bas.add_widget(Widget())
+        k.add_widget(bas)
         sel = Kart(size_hint_y=None, height=dp(64), padding=dp(14))
         sel.add_widget(etiket("Bugün nasıl yardımcı olabilirim?", 16))
         k.add_widget(sel)
-        grid = GridLayout(cols=2, spacing=dp(10), size_hint_y=None, height=dp(3 * 90 + 2 * 10))
-        grid.add_widget(Dugme("Planım", lambda: self.yakinda("Planım")))
-        grid.add_widget(Dugme("Notlarım", lambda: self.git("notlar")))
-        grid.add_widget(Dugme("Müzik", lambda: self.yakinda("Müzik")))
-        grid.add_widget(Dugme("Fotoğraf", lambda: self.yakinda("Fotoğraf")))
-        grid.add_widget(Dugme("Alarm", lambda: self.yakinda("Alarm")))
-        grid.add_widget(Dugme("Ayarlar", lambda: self.yakinda("Ayarlar")))
+        grid = GridLayout(cols=2, spacing=dp(10), size_hint_y=None, height=dp(3 * 100 + 2 * 10))
+        grid.add_widget(Kutu("takvim", "Planım", lambda: self.yakinda("Planım")))
+        grid.add_widget(Kutu("not", "Notlarım", lambda: self.git("notlar")))
+        grid.add_widget(Kutu("muzik", "Müzik", lambda: self.yakinda("Müzik")))
+        grid.add_widget(Kutu("kamera", "Fotoğraf", lambda: self.yakinda("Fotoğraf")))
+        grid.add_widget(Kutu("alarm", "Alarm", lambda: self.yakinda("Alarm")))
+        grid.add_widget(Kutu("ayar", "Ayarlar", lambda: self.yakinda("Ayarlar")))
         k.add_widget(grid)
         k.add_widget(Widget())
         k.add_widget(Dugme("Bana bir şey söyle...", self.sohbete_gir, renk=SOLUK,
@@ -195,6 +311,7 @@ class NikoApp(App):
         e = Screen(name="sohbet")
         k = BoxLayout(orientation="vertical", padding=dp(10), spacing=dp(8))
         ust = BoxLayout(size_hint_y=None, height=dp(44), spacing=dp(8))
+        ust.add_widget(Logo(size_hint_x=None, width=dp(34)))
         ust.add_widget(etiket("Niko", 22))
         self.mod_dugme = Dugme(self.mod, self.mod_degistir, bg=MOR, renk=BEYAZ,
                                size_hint_x=None, width=dp(100))
@@ -210,6 +327,7 @@ class NikoApp(App):
                                background_active="", background_color=KART, foreground_color=YAZI,
                                hint_text_color=SOLUK, cursor_color=YAZI, padding=[dp(12), dp(14)])
         self.girdi.bind(on_text_validate=self.gonder)
+        self.girdi.bind(focus=self.odak)
         alt.add_widget(self.girdi)
         alt.add_widget(Dugme("Gönder", lambda: self.gonder(), bg=MOR, renk=BEYAZ,
                              size_hint_x=None, width=dp(90)))
@@ -258,10 +376,10 @@ class NikoApp(App):
         return e
 
     def alt_menu(self):
-        bar = Kart(bg=KART2, radius=0, size_hint_y=None, height=dp(56), padding=[dp(6), dp(4)], spacing=dp(6))
-        bar.add_widget(Dugme("Ana Sayfa", lambda: self.git("ana"), bg=KART2))
-        bar.add_widget(Dugme("Hafıza", lambda: self.git("hafiza"), bg=KART2))
-        bar.add_widget(Dugme("Profil", lambda: self.yakinda("Profil"), bg=KART2))
+        bar = Kart(bg=KART2, radius=0, size_hint_y=None, height=dp(64), padding=[dp(6), dp(4)], spacing=dp(6))
+        bar.add_widget(Kutu("ev", "Ana Sayfa", lambda: self.git("ana"), bg=KART2, boyut=12))
+        bar.add_widget(Kutu("hafiza", "Hafıza", lambda: self.git("hafiza"), bg=KART2, boyut=12))
+        bar.add_widget(Kutu("kisi", "Profil", lambda: self.yakinda("Profil"), bg=KART2, boyut=12))
         return bar
 
     # ---------- notlar ve hafıza ekranı ----------
@@ -600,6 +718,10 @@ class NikoApp(App):
                 raise Exception("speak kodu %s, dil kodu %s" % (r, getattr(self, "tts_sonuc", "?")))
         except Exception as e:
             self.kutu.add_widget(Balon("Ses hatası: " + str(e)[:150], False))
+
+    def odak(self, w, v):
+        self.alt.height = 0 if v else dp(64)
+        self.alt.opacity = 0 if v else 1
 
     def bitir(self, soru, cevap, hata):
         if cevap is not None:
