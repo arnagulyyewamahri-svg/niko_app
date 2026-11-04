@@ -503,7 +503,7 @@ class NikoApp(App):
             it.putExtra(AlarmClock.EXTRA_HOUR, saat)
             it.putExtra(AlarmClock.EXTRA_MINUTES, dakika)
             it.putExtra(AlarmClock.EXTRA_MESSAGE, mesaj)
-            it.putExtra(AlarmClock.EXTRA_SKIP_UI, True)
+            it.putExtra(AlarmClock.EXTRA_SKIP_UI, False)
             act.startActivity(it)
             return "Alarm kuruldu: %02d:%02d - %s" % (saat, dakika, mesaj)
         except Exception as e:
