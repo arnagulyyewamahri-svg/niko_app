@@ -221,6 +221,8 @@ class NikoApp(App):
         self.yonetici.add_widget(self.not_ekrani())
         self.yonetici.add_widget(self.hafiza_ekrani())
         self.yonetici.add_widget(self.yakinda_ekrani())
+        self.yonetici.add_widget(self.ayarlar_ekrani())
+        self.yonetici.add_widget(self.profil_ekrani())
         kok.add_widget(self.yonetici)
         self.alt = self.alt_menu()
         kok.add_widget(self.alt)
@@ -261,7 +263,11 @@ class NikoApp(App):
     # ---------- gezinme ----------
     def git(self, ad):
         self.yonetici.current = ad
-        if ad == "notlar":
+        if ad == "ayarlar":
+            self.ayar_ciz()
+        elif ad == "profil":
+            self.profil_ciz()
+        elif ad == "notlar":
             self.notlari_ciz()
         elif ad == "hafiza":
             self.hafiza_ciz()
@@ -299,7 +305,7 @@ class NikoApp(App):
         grid.add_widget(Kutu("muzik", "Müzik", lambda: self.yakinda("Müzik")))
         grid.add_widget(Kutu("kamera", "Fotoğraf", lambda: self.yakinda("Fotoğraf")))
         grid.add_widget(Kutu("alarm", "Alarm", lambda: self.yakinda("Alarm")))
-        grid.add_widget(Kutu("ayar", "Ayarlar", lambda: self.yakinda("Ayarlar")))
+        grid.add_widget(Kutu("ayar", "Ayarlar", lambda: self.git("ayarlar")))
         k.add_widget(grid)
         k.add_widget(Widget())
         k.add_widget(Dugme("Bana bir şey söyle...", self.sohbete_gir, renk=SOLUK,
@@ -379,7 +385,7 @@ class NikoApp(App):
         bar = Kart(bg=KART2, radius=0, size_hint_y=None, height=dp(64), padding=[dp(6), dp(4)], spacing=dp(6))
         bar.add_widget(Kutu("ev", "Ana Sayfa", lambda: self.git("ana"), bg=KART2, boyut=12))
         bar.add_widget(Kutu("hafiza", "Hafıza", lambda: self.git("hafiza"), bg=KART2, boyut=12))
-        bar.add_widget(Kutu("kisi", "Profil", lambda: self.yakinda("Profil"), bg=KART2, boyut=12))
+        bar.add_widget(Kutu("kisi", "Profil", lambda: self.git("profil"), bg=KART2, boyut=12))
         return bar
 
     # ---------- notlar ve hafıza ekranı ----------
@@ -576,12 +582,17 @@ class NikoApp(App):
             contents.append({"role": "model", "parts": [{"text": g["n"]}]})
         contents.append({"role": "user", "parts": [{"text": soru}]})
         talimat = KISILIK + " " + MODLAR[self.mod] + " Bugunun tarihi ve saati: " + simdi
+        pr = self.profil_oku()
+        if pr.get("ad"):
+            talimat += " Kullanicinin adi: " + pr["ad"] + "."
+        if pr.get("hk"):
+            talimat += " Kullanici hakkinda: " + pr["hk"]
         body = {"system_instruction": {"parts": [{"text": talimat}]}, "contents": contents}
         cevap = None
         hata = ""
         for deneme in range(3):
             try:
-                r = requests.post(URL, json=body, timeout=30).json()
+                r = requests.post(self.adres(), json=body, timeout=30).json()
                 if "candidates" in r:
                     cevap = r["candidates"][0]["content"]["parts"][0]["text"]
                     break
@@ -722,6 +733,114 @@ class NikoApp(App):
     def odak(self, w, v):
         self.alt.height = 0 if v else dp(64)
         self.alt.opacity = 0 if v else 1
+
+    def ayarlar_ekrani(self):
+        e = Screen(name="ayarlar")
+        k = BoxLayout(orientation="vertical", padding=dp(14), spacing=dp(10))
+        k.add_widget(etiket("Ayarlar", 24, YAZI, "left", dp(44)))
+        self.ayar_bilgi = etiket("", 15, SOLUK, "left", dp(64))
+        k.add_widget(self.ayar_bilgi)
+        self.anahtar_girdi = TextInput(hint_text="API anahtarını yapıştır", multiline=False, password=True,
+                                       background_normal="", background_active="", background_color=KART,
+                                       foreground_color=YAZI, hint_text_color=SOLUK, cursor_color=YAZI,
+                                       padding=[dp(12), dp(14)], size_hint_y=None, height=dp(48))
+        k.add_widget(self.anahtar_girdi)
+        k.add_widget(Dugme("Anahtarı kaydet", self.anahtar_kaydet, bg=MOR, renk=BEYAZ, size_hint_y=None, height=dp(48)))
+        k.add_widget(Dugme("Anahtarı sil", self.anahtar_sil, size_hint_y=None, height=dp(48)))
+        self.ses_dugme = Dugme("", self.ses_degistir, size_hint_y=None, height=dp(48))
+        k.add_widget(self.ses_dugme)
+        k.add_widget(Widget())
+        e.add_widget(k)
+        return e
+
+    def profil_ekrani(self):
+        e = Screen(name="profil")
+        k = BoxLayout(orientation="vertical", padding=dp(14), spacing=dp(10))
+        k.add_widget(etiket("Profil", 24, YAZI, "left", dp(44)))
+        self.pr_ad = TextInput(hint_text="Adın", multiline=False, background_normal="", background_active="",
+                               background_color=KART, foreground_color=YAZI, hint_text_color=SOLUK,
+                               cursor_color=YAZI, padding=[dp(12), dp(14)], size_hint_y=None, height=dp(48))
+        k.add_widget(self.pr_ad)
+        self.pr_hk = TextInput(hint_text="Kendin hakkında kısa bir not", multiline=False, background_normal="",
+                               background_active="", background_color=KART, foreground_color=YAZI,
+                               hint_text_color=SOLUK, cursor_color=YAZI, padding=[dp(12), dp(14)],
+                               size_hint_y=None, height=dp(48))
+        k.add_widget(self.pr_hk)
+        k.add_widget(Dugme("Kaydet", self.profil_kaydet, bg=MOR, renk=BEYAZ, size_hint_y=None, height=dp(48)))
+        self.pr_durum = etiket("", 15, SOLUK, "left", dp(40))
+        k.add_widget(self.pr_durum)
+        k.add_widget(Widget())
+        e.add_widget(k)
+        return e
+
+    def anahtar_dosyasi(self):
+        return os.path.join(self.user_data_dir, "anahtar.txt")
+
+    def kendi_anahtar(self):
+        try:
+            with open(self.anahtar_dosyasi(), "r", encoding="utf-8") as f:
+                return f.read().strip()
+        except Exception:
+            return ""
+
+    def adres(self):
+        return URL.split("?key=")[0] + "?key=" + (self.kendi_anahtar() or API_KEY)
+
+    def ayar_ciz(self):
+        if self.kendi_anahtar():
+            self.ayar_bilgi.text = "Kendi anahtarın kullanılıyor (" + str(len(self.kendi_anahtar())) + " karakter)."
+        else:
+            self.ayar_bilgi.text = "Uygulamaya gömülü anahtar kullanılıyor. Kendi anahtarını girebilirsin."
+        acik = self.sesli_acik()
+        for c in self.ses_dugme.children:
+            c.text = "Sesli cevap: " + ("açık" if acik else "kapalı")
+
+    def anahtar_kaydet(self):
+        a = self.anahtar_girdi.text.strip()
+        if len(a) < 20 or len(a) > 80 or " " in a:
+            self.ayar_bilgi.text = "Anahtar geçersiz görünüyor (" + str(len(a)) + " karakter). Bir kez yapıştır."
+            return
+        with open(self.anahtar_dosyasi(), "w", encoding="utf-8") as f:
+            f.write(a)
+        self.anahtar_girdi.text = ""
+        self.ayar_ciz()
+
+    def anahtar_sil(self):
+        try:
+            os.remove(self.anahtar_dosyasi())
+        except Exception:
+            pass
+        self.ayar_ciz()
+
+    def ses_degistir(self):
+        try:
+            with open(self.sesli_dosyasi(), "w") as f:
+                f.write("0" if self.sesli_acik() else "1")
+        except Exception:
+            pass
+        self.ayar_ciz()
+
+    def profil_dosyasi(self):
+        return os.path.join(self.user_data_dir, "profil.json")
+
+    def profil_oku(self):
+        try:
+            with open(self.profil_dosyasi(), "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception:
+            return {}
+
+    def profil_ciz(self):
+        pr = self.profil_oku()
+        self.pr_ad.text = pr.get("ad", "")
+        self.pr_hk.text = pr.get("hk", "")
+        self.pr_durum.text = ""
+
+    def profil_kaydet(self):
+        pr = {"ad": self.pr_ad.text.strip()[:40], "hk": self.pr_hk.text.strip()[:300]}
+        with open(self.profil_dosyasi(), "w", encoding="utf-8") as f:
+            json.dump(pr, f, ensure_ascii=False)
+        self.pr_durum.text = "Kaydedildi."
 
     def bitir(self, soru, cevap, hata):
         if cevap is not None:
