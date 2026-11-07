@@ -518,7 +518,17 @@ class NikoApp(App):
             self.yerel_cevap(soru, cevap)
             return
 
-        if kucuk.startswith("hava ") or kucuk == "hava":
+                if "saat" in kucuk and ("kaç" in kucuk or "kac" in kucuk):
+            cevap = "Şu an saat " + datetime.datetime.now().strftime("%H:%M") + "."
+            self.yerel_cevap(soru, cevap)
+            return
+
+        if "tarih" in kucuk or "bugün günlerden" in kucuk:
+            cevap = "Bugün " + datetime.datetime.now().strftime("%d.%m.%Y") + "."
+            self.yerel_cevap(soru, cevap)
+            return
+
+if kucuk.startswith("hava ") or kucuk == "hava":
             sehir = soru[4:].replace("durumu", "").strip(" :")
             if not sehir:
                 self.yerel_cevap(soru, "Şehir yaz. Örnek: hava istanbul")
