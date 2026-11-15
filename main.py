@@ -60,7 +60,7 @@ BEYAZ = (1, 1, 1, 1)
 MOR_ACIK = get_color_from_hex("#6c63ff")
 HALKA = get_color_from_hex("#8f8aff")
 
-Window.softinput_mode = "below_target"
+Window.softinput_mode = "resize"
 Window.clearcolor = ZEMIN
 
 
@@ -290,6 +290,10 @@ class NikoApp(App):
             self.sohbet_goster()
             Clock.schedule_once(lambda dt: self.alta_git(), 0.2)
 
+    def alarm_kutusu(self):
+        self.sohbete_gir()
+        Clock.schedule_once(lambda dt: setattr(self.girdi, "text", "hatırlat 09:30 "), 0.4)
+
     def yakinda(self, ad):
         self.yakinda_et.text = ad + "\n\nBu bölüm yakında gelecek."
         self.yonetici.current = "yakinda"
@@ -319,7 +323,7 @@ class NikoApp(App):
         grid.add_widget(Kutu("not", "Notlarım", lambda: self.git("notlar")))
         grid.add_widget(Kutu("muzik", "Müzik", lambda: self.yakinda("Müzik")))
         grid.add_widget(Kutu("kamera", "Fotoğraf", lambda: self.yakinda("Fotoğraf")))
-        grid.add_widget(Kutu("alarm", "Alarm", lambda: self.yakinda("Alarm")))
+        grid.add_widget(Kutu("alarm", "Alarm", lambda: self.alarm_kutusu()))
         grid.add_widget(Kutu("ayar", "Ayarlar", lambda: self.git("ayarlar")))
         k.add_widget(grid)
         k.add_widget(Widget())
@@ -490,6 +494,12 @@ class NikoApp(App):
         Clock.schedule_once(lambda dt: self.alta_git(), 0.2)
 
     def gonder(self, *args):
+        try:
+            self._gonder(*args)
+        except Exception as e:
+            self.kutu.add_widget(Balon("Hata: " + str(e)[:200], False))
+
+    def _gonder(self, *args):
         soru = self.girdi.text.strip()
         self.girdi.focus = False
         if not soru:
