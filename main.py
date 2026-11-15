@@ -23,7 +23,7 @@ from kivy.uix.screenmanager import ScreenManager, Screen, NoTransition
 
 API_KEY = "PLACEHOLDER_API_KEY"
 URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=" + API_KEY
-KISILIK = "Sen Niko'sun, kullanicinin samimi ve bilgili yapay zeka arkadasisin. Kisa ve anlasilir cevap ver, gereksiz uzatma. Emoji kullanma. Alarm ya da hatirlatici kuramazsin; kullanici isterse ona 'hatirlat 09:30 not' yazmasini soyle."
+KISILIK = "Sen Niko'sun, kullanicinin samimi ve bilgili yapay zeka arkadasisin. Kisa ve anlasilir cevap ver, gereksiz uzatma. Emoji kullanma. Kullanici alarm kurmak, not almak, uygulama acmak ya da Play Store'da aramak isterse ilgili araci kullan."
 HAFIZA_LIMIT = 30
 EMOJI = re.compile("[\U0001F000-\U0001FAFF\u2600-\u27BF\uFE0F\u200d]")
 
@@ -34,6 +34,21 @@ MODLAR = {
     "Gece": "Sakin ve yumusak bir dille konus.",
 }
 SIRA = list(MODLAR)
+
+_AD = {"type": "OBJECT", "properties": {"ad": {"type": "STRING"}}, "required": ["ad"]}
+ARACLAR = [{"function_declarations": [
+    {"name": "alarm_kur", "description": "Telefonda alarm kurar",
+     "parameters": {"type": "OBJECT", "properties": {
+         "saat": {"type": "INTEGER", "description": "0-23 arasi saat"},
+         "dakika": {"type": "INTEGER", "description": "0-59 arasi dakika"},
+         "mesaj": {"type": "STRING", "description": "alarm etiketi"}},
+         "required": ["saat", "dakika"]}},
+    {"name": "not_ekle", "description": "Kullanicinin not defterine not ekler",
+     "parameters": {"type": "OBJECT", "properties": {"metin": {"type": "STRING"}}, "required": ["metin"]}},
+    {"name": "uygulama_ac", "description": "Telefondaki uygulamayi acar: youtube, whatsapp, instagram, telegram, tiktok, chrome, gmail, harita, play store, termux",
+     "parameters": _AD},
+    {"name": "play_ara", "description": "Play Store'da uygulama arar", "parameters": _AD},
+]}]
 
 ZEMIN = get_color_from_hex("#0d1020")
 KART = get_color_from_hex("#181c33")
@@ -518,7 +533,7 @@ class NikoApp(App):
             self.yerel_cevap(soru, cevap)
             return
 
-                if "saat" in kucuk and ("kaç" in kucuk or "kac" in kucuk):
+        if "saat" in kucuk and ("kaç" in kucuk or "kac" in kucuk):
             cevap = "Şu an saat " + datetime.datetime.now().strftime("%H:%M") + "."
             self.yerel_cevap(soru, cevap)
             return
@@ -528,7 +543,7 @@ class NikoApp(App):
             self.yerel_cevap(soru, cevap)
             return
 
-if kucuk.startswith("hava ") or kucuk == "hava":
+        if kucuk.startswith("hava ") or kucuk == "hava":
             sehir = soru[4:].replace("durumu", "").strip(" :")
             if not sehir:
                 self.yerel_cevap(soru, "Şehir yaz. Örnek: hava istanbul")
@@ -597,20 +612,20 @@ if kucuk.startswith("hava ") or kucuk == "hava":
             talimat += " Kullanicinin adi: " + pr["ad"] + "."
         if pr.get("hk"):
             talimat += " Kullanici hakkinda: " + pr["hk"]
-        body = {"system_instruction": {"parts": [{"text": talimat}]}, "contents": contents}
+        body = {"system_instruction": {"parts": [{"text": talimat}]}, "contents": contents, "tools": ARACLAR}
         cevap = None
         hata = ""
         for deneme in range(3):
             try:
                 r = requests.post(self.adres(), json=body, timeout=30).json()
                 if "candidates" in r:
-                    cevap = r["candidates"][0]["content"]["parts"][0]["text"]
+                    cevap = self.cevap_ayikla(r)
                     break
                 hata = str(r.get("error", {}).get("message", "bilinmeyen"))[:150]
             except Exception as e:
                 hata = "Bağlantı hatası: " + str(e)[:150]
             time.sleep(3)
-        Clock.schedule_once(lambda dt: self.bitir(soru, cevap, hata), 0)
+        Clock.schedule_once(lambda dt: self.sonuc_isle(soru, cevap, hata), 0)
 
     def hizli(self, soru, tur, arg):
         try:
@@ -629,6 +644,43 @@ if kucuk.startswith("hava ") or kucuk == "hava":
         except Exception as e:
             cevap = "Bilgi alınamadı: " + str(e)[:100]
         Clock.schedule_once(lambda dt: self.bitir(soru, cevap, ""), 0)
+
+    def cevap_ayikla(self, r):
+        self._arac = None
+        metin = ""
+        for p in r["candidates"][0]["content"].get("parts", []):
+            if "functionCall" in p:
+                fc = p["functionCall"]
+                self._arac = (fc["name"], fc.get("args", {}))
+            elif "text" in p:
+                metin += p["text"]
+        return metin
+
+    def sonuc_isle(self, soru, cevap, hata):
+        arac = getattr(self, "_arac", None)
+        self._arac = None
+        if cevap is not None and arac:
+            ad, a = arac
+            try:
+                if ad == "alarm_kur":
+                    cevap = self.alarm_kur(int(a.get("saat", 0)), int(a.get("dakika", 0)),
+                                           a.get("mesaj") or "Niko hatırlatıcı")
+                elif ad == "not_ekle":
+                    s = self.notlari_oku()
+                    s.append(str(a.get("metin", "")).strip())
+                    self.notlari_yaz(s)
+                    cevap = "Notu kaydettim."
+                elif ad == "uygulama_ac":
+                    cevap = self.uygulama_ac(str(a.get("ad", "")).lower())
+                elif ad == "play_ara":
+                    cevap = self.play_ara(str(a.get("ad", "")))
+                else:
+                    cevap = "Bu işlemi bilmiyorum."
+            except Exception as e:
+                cevap = "İşlem yapılamadı: " + str(e)[:100]
+        elif cevap is not None and not cevap.strip():
+            cevap = "Tam anlayamadım, tekrar söyler misin?"
+        self.bitir(soru, cevap, hata)
 
     def alarm_kur(self, saat, dakika, mesaj):
         try:
